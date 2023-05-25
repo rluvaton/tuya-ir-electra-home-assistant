@@ -23,7 +23,7 @@ class IRLearnedApi:
        self._ir_device_id = ir_device_id
        self._ir_remote_id = ir_remote_id
 
-    async def async_setup(self):
+    def setup(self):
         self._tuya_cloud = tinytuya.Cloud(
             apiRegion=self.tuya_region,
             apiKey=self.tuya_api_key,
@@ -110,8 +110,8 @@ class AC:
         self._status = None
         self._model = None
 
-    async def async_setup(self):
-        await self._api.async_setup()
+    def setup(self):
+        self._api.setup()
 
     def update_temp(self, new_temp):
         self.turn_on()
@@ -142,7 +142,7 @@ class AC:
             self.toggle_power()
 
     def turn_on(self):
-        if self.is_on:
+        if not self.is_on:
             self.toggle_power()
 
     def toggle_power(self):
@@ -153,6 +153,7 @@ class AC:
         try:
             self._api.toggle_power()
             self.is_on = not original_is_on
+            logger.debug("current on is: " + str(self.is_on))
         except Exception as e:
             self.is_on = original_is_on
             raise e

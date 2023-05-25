@@ -115,6 +115,8 @@ async def async_setup_platform(
 
     async_add_entities(acs, update_before_add=True)
 
+    await acs[0].async_setup(hass)
+
 
 class TuyaIRElectraHomeAssistant(ClimateEntity):
     def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ac_conf):
@@ -124,10 +126,10 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
 
         self.ac = AC(tuya_region, tuya_api_key, tuya_api_secret, ac_conf[CONF_AC_TUYA_IR_DEVICE_ID], ac_conf[CONF_AC_TUYA_IR_REMOTE_ID])
 
-    async def async_setup(self):
+    async def async_setup(self, hass):
         """Set up the thermostat."""
         _LOGGER.info("Setting up TuyaIRElectraHomeAssistant")
-        await self.ac.async_setup()
+        await hass.async_add_executor_job(self.ac.setup())
 
     # managed properties
 
@@ -168,7 +170,7 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
 
         if not self.ac.is_on:
             _LOGGER.debug(f"current_temperature: ac is off")
-            return None
+            # return None
 
         value = self.ac.temp
         if value is not None:
@@ -341,9 +343,9 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
 
     def set_fan_mode(self, fan_mode):
         _LOGGER.debug(f"set_fan_mode: setting fan mode to {fan_mode}")
-        if not self.ac.is_on:
-            _LOGGER.debug(f"set_fan_mode: ac is off, cant set fan mode to {fan_mode}")
-            return
+        # if not self.ac.is_on:
+        #     _LOGGER.debug(f"set_fan_mode: ac is off, cant set fan mode to {fan_mode}")
+        #     return
 
 
         fan_speed = None
