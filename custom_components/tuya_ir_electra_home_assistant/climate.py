@@ -109,7 +109,7 @@ async def async_setup_platform(
     tuya_api_key = config.get(CONF_TUYA_API_KEY)
     tuya_api_secret = config.get(CONF_TUYA_API_SECRET)
     acs = [
-        TuyaIRElectraHomeAssistant(tuya_api_region, tuya_api_key, tuya_api_secret, ac)
+        TuyaIRElectraHomeAssistant(hass, tuya_api_region, tuya_api_key, tuya_api_secret, ac)
         for ac in config.get(CONF_ACS)
     ]
 
@@ -121,7 +121,13 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         """Initialize the thermostat."""
         _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac_conf)
         self._name = ac_conf[CONF_AC_NAME]
+
         self.ac = AC(tuya_region, tuya_api_key, tuya_api_secret, ac_conf[CONF_AC_TUYA_IR_DEVICE_ID], ac_conf[CONF_AC_TUYA_IR_REMOTE_ID])
+
+    async def async_setup(self):
+        """Set up the thermostat."""
+        _LOGGER.info("Setting up TuyaIRElectraHomeAssistant")
+        await self.ac.async_setup()
 
     # managed properties
 

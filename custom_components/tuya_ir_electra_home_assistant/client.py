@@ -17,15 +17,19 @@ with open(commands_path, 'r') as f:
 
 class IRLearnedApi:
     def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ir_device_id, ir_remote_id):
+       self.tuya_region = tuya_region
+       self.tuya_api_key = tuya_api_key
+       self.tuya_api_secret = tuya_api_secret
+       self._ir_device_id = ir_device_id
+       self._ir_remote_id = ir_remote_id
+
+    async def async_setup(self):
         self._tuya_cloud = tinytuya.Cloud(
-            apiRegion=tuya_region,
-            apiKey=tuya_api_key,
-            apiSecret=tuya_api_secret,
+            apiRegion=self.tuya_region,
+            apiKey=self.tuya_api_key,
+            apiSecret=self.tuya_api_secret,
             # apiDeviceID=device_id
         )
-
-        self._ir_device_id = ir_device_id
-        self._ir_remote_id = ir_remote_id
 
     def _send_command(self, key_id):
         post_data = {
@@ -105,6 +109,9 @@ class AC:
 
         self._status = None
         self._model = None
+
+    async def async_setup(self):
+        await self._api.async_setup()
 
     def update_temp(self, new_temp):
         self.turn_on()
