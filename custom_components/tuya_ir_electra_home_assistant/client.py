@@ -75,7 +75,7 @@ class IRLearnedApi:
 
     @staticmethod
     def _format_temp(mode, temp):
-        if mode == 'cool':
+        if mode == 'cold':
             # The range of cool temperature is 16-28
             temp = max(temp, 16)
             temp = min(temp, 28)
