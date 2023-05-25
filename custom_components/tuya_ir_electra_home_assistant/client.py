@@ -1,3 +1,4 @@
+import os
 import json
 from threading import Lock
 import tinytuya
@@ -7,8 +8,10 @@ import logging
 
 logger = logging.getLogger(__name__ + ".client")
 
+current_dir = os.path.dirname(__file__)
+commands_path = os.path.join(current_dir, './ac-commands.json5')
 # Read from json file ac-commands.json
-with open('./ac-commands.json5', 'r') as f:
+with open(commands_path, 'r') as f:
     ir_commands = json5.load(f)
 
 
