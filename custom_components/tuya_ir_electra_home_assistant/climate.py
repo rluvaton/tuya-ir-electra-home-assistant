@@ -109,7 +109,7 @@ async def async_setup_platform(
     tuya_api_key = config.get(CONF_TUYA_API_KEY)
     tuya_api_secret = config.get(CONF_TUYA_API_SECRET)
     acs = [
-        TuyaIRElectraHomeAssistant(hass, tuya_api_region, tuya_api_key, tuya_api_secret, ac)
+        TuyaIRElectraHomeAssistant(tuya_api_region, tuya_api_key, tuya_api_secret, ac)
         for ac in config.get(CONF_ACS)
     ]
 
