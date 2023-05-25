@@ -6,7 +6,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from typing import Any, Callable, Dict, Optional
-from client import AC
+from .client import AC
 
 
 from homeassistant.const import (
