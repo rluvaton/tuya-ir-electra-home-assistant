@@ -36,7 +36,7 @@ from homeassistant.components.climate.const import (
     # HVAC_MODE_FAN_ONLY,
     # HVAC_MODE_DRY,
     HVAC_MODE_HEAT,
-    HVAC_MODE_HEAT_COOL,
+    # HVAC_MODE_HEAT_COOL,
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_FAN_MODE,
     FAN_OFF,
@@ -52,20 +52,19 @@ _LOGGER = logging.getLogger(__name__)
 
 # CONF_IMEI = "imei"
 # CONF_TOKEN = "token"
-CONF_ACS = "acs"
 CONF_TUYA_API_KEY="tuya_api_key"
 CONF_TUYA_API_SECRET="tuya_api_secret"
 CONF_TUYA_API_REGION="tuya_api_region"
-# CONF_AC_ID = "id"
+# CONF_USE_SHARED_SID = "use_shared_sid"
 
+# CONF_AC_ID = "id"
+CONF_ACS = "acs"
 CONF_AC_NAME = "name"
 CONF_AC_TUYA_IR_DEVICE_ID="tuya_ir_device_id"
 CONF_AC_TUYA_IR_REMOTE_ID="tuya_ir_remote_id"
-# CONF_USE_SHARED_SID = "use_shared_sid"
 
 DEFAULT_NAME = "TuyaIRElectraHomeAssistant"
-
-
+print("")
 # Schema should contain
 # - ir_device_id
 # - virtual_ir_remote_device_id
@@ -104,15 +103,15 @@ async def async_setup_platform(
     _LOGGER.debug("Setting up the TuyaIRElectraHomeAssistant climate platform conf: %s", config)
     session = async_get_clientsession(hass)
 
-    imei = config.get(CONF_IMEI)
-    token = config.get(CONF_TOKEN)
-    use_shared_sid = config.get(CONF_USE_SHARED_SID)
-    acs = [
-        TuyaIRElectraHomeAssistant(ac, imei, token, use_shared_sid)
-        for ac in config.get(CONF_ACS)
-    ]
-
-    async_add_entities(acs, update_before_add=True)
+    tuya_api_key = config.get(CONF_TUYA_API_KEY)
+    yuya_api_secret = config.get(CONF_TUYA_API_SECRET)
+    # use_shared_sid = config.get(CONF_USE_SHARED_SID)
+    # acs = [
+    #     TuyaIRElectraHomeAssistant(ac, imei, token, use_shared_sid)
+    #     for ac in config.get(CONF_ACS)
+    # ]
+    #
+    # async_add_entities(acs, update_before_add=True)
 
 
 class TuyaIRElectraHomeAssistant(ClimateEntity):
@@ -186,10 +185,10 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     HVAC_MODE_MAPPING = {
         "STBY": HVAC_MODE_OFF,
         "COOL": HVAC_MODE_COOL,
-        "FAN": HVAC_MODE_FAN_ONLY,
-        "DRY": HVAC_MODE_DRY,
+        # "FAN": HVAC_MODE_FAN_ONLY,
+        # "DRY": HVAC_MODE_DRY,
         "HEAT": HVAC_MODE_HEAT,
-        "AUTO": HVAC_MODE_HEAT_COOL,
+        # "AUTO": HVAC_MODE_HEAT_COOL,
     }
 
     HVAC_MODE_MAPPING_INV = {v: k for k, v in HVAC_MODE_MAPPING.items()}
@@ -215,10 +214,10 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         return [
             HVAC_MODE_OFF,
             HVAC_MODE_COOL,
-            HVAC_MODE_FAN_ONLY,
-            HVAC_MODE_DRY,
+            # HVAC_MODE_FAN_ONLY,
+            # HVAC_MODE_DRY,
             HVAC_MODE_HEAT,
-            HVAC_MODE_HEAT_COOL,
+            # HVAC_MODE_HEAT_COOL,
         ]
 
     # TODO:!
