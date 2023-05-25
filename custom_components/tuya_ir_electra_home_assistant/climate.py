@@ -6,6 +6,8 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from typing import Any, Callable, Dict, Optional
+from client import AC
+
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -103,23 +105,23 @@ async def async_setup_platform(
     _LOGGER.debug("Setting up the TuyaIRElectraHomeAssistant climate platform conf: %s", config)
     session = async_get_clientsession(hass)
 
+    tuya_api_region = config.get(CONF_TUYA_API_REGION)
     tuya_api_key = config.get(CONF_TUYA_API_KEY)
-    yuya_api_secret = config.get(CONF_TUYA_API_SECRET)
-    # use_shared_sid = config.get(CONF_USE_SHARED_SID)
-    # acs = [
-    #     TuyaIRElectraHomeAssistant(ac, imei, token, use_shared_sid)
-    #     for ac in config.get(CONF_ACS)
-    # ]
-    #
-    # async_add_entities(acs, update_before_add=True)
+    tuya_api_secret = config.get(CONF_TUYA_API_SECRET)
+    acs = [
+        TuyaIRElectraHomeAssistant(tuya_api_region, tuya_api_key, tuya_api_secret, ac)
+        for ac in config.get(CONF_ACS)
+    ]
+
+    async_add_entities(acs, update_before_add=True)
 
 
 class TuyaIRElectraHomeAssistant(ClimateEntity):
-    def __init__(self, ac, imei, token, use_shared_sid):
+    def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ac_conf):
         """Initialize the thermostat."""
-        _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac)
-        self._name = ac[CONF_AC_NAME]
-        self.ac = AC(imei, token, ac[CONF_AC_ID], None, use_shared_sid)
+        _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac_conf)
+        self._name = ac_conf[CONF_AC_NAME]
+        self.ac = AC(tuya_region, tuya_api_key, tuya_api_secret, ac_conf[CONF_AC_TUYA_IR_DEVICE_ID], ac_conf[CONF_AC_TUYA_IR_REMOTE_ID])
 
     # managed properties
 
@@ -135,6 +137,7 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def should_poll(self):
         """Return if polling is required."""
+        # TODO - maybe change that
         return True
 
     @property
@@ -155,10 +158,13 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        if self.ac.status is None:
-            _LOGGER.debug(f"current_temperature: status is None, returning None")
+        # TODO - I hope that this means in the AC
+
+        if not self.ac.is_on:
+            _LOGGER.debug(f"current_temperature: ac is off")
             return None
-        value = self.ac.status.current_temp
+
+        value = self.ac.temp
         if value is not None:
             value = int(value)
         _LOGGER.debug(f"value of current_temperature property: {value}")
@@ -167,10 +173,13 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        if self.ac.status is None:
-            _LOGGER.debug(f"target_temperature: status is None, returning None")
+
+        # TODO - not supported in the moment - will return the current temperature
+        if not self.ac.is_on:
+            _LOGGER.debug(f"target_temperature: ac is off")
             return None
-        value = self.ac.status.spt
+
+        value = self.ac.temp
         if value is not None:
             value = int(value)
         _LOGGER.debug(f"value of target_temperature property: {value}")
@@ -196,17 +205,23 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return hvac operation ie. heat, cool mode."""
-        if self.ac.status is None:
-            _LOGGER.debug(f"hvac_mode: status is None, returning None")
-            return None
-        if self.ac.status.is_on:
-            ac_mode = self.ac.status.ac_mode
-            value = self.HVAC_MODE_MAPPING[ac_mode]
-            _LOGGER.debug(f"hvac_mode: returning {value} (derived from {ac_mode})")
-            return value
-        else:
-            _LOGGER.debug(f"hvac_mode: returning HVAC_MODE_OFF - device is off")
+        if not self.ac.is_on:
+            _LOGGER.debug(f"hvac_mode: ac is off")
             return HVAC_MODE_OFF
+
+        if self.ac.mode == 'cold':
+            _LOGGER.debug(f"hvac_mode: ac is cold")
+            return HVAC_MODE_COOL
+
+        if self.ac.mode == 'hot':
+            _LOGGER.debug(f"hvac_mode: ac is hot")
+            return HVAC_MODE_HEAT
+
+        else:
+            _LOGGER.warning(f"hvac_mode: unknown mode: " + self.ac.mode)
+
+            # Not returning off as if it's on then we would be completely off
+            return HVAC_MODE_COOL
 
     @property
     def hvac_modes(self):
@@ -241,17 +256,26 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def fan_mode(self):
         """Returns the current fan mode (low, high, auto etc)"""
-        if self.ac.status is None:
-            _LOGGER.debug(f"fan_mode: status is None, returning None")
-            return None
-        if self.ac.status.is_on:
-            fan_speed = self.ac.status.fan_speed
-            value = self.FAN_MODE_MAPPING[fan_speed]
-            _LOGGER.debug(f"fan_mode: returning {value} (derived from {fan_speed})")
-            return value
-        else:
+        if not self.ac.is_on:
             _LOGGER.debug(f"fan_mode: returning FAN_OFF - device is off")
             return FAN_OFF
+
+        _LOGGER.debug(f"fan_mode: fan_speed is " + self.ac.fan_speed)
+
+        if self.ac.fan_speed == 'low':
+            return FAN_LOW
+
+        if self.ac.fan_speed == 'medium':
+            return FAN_MEDIUM
+
+        if self.ac.fan_speed == 'high':
+            return FAN_HIGH
+
+        if self.ac.fan_speed == 'auto':
+            return FAN_AUTO
+
+        _LOGGER.debug(f"fan_mode: unknown fan_speed: " + self.ac.fan_speed)
+        return None
 
     @property
     def fan_modes(self):
@@ -271,9 +295,11 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         _LOGGER.debug(f"setting new temperature to {temperature}")
         if temperature is None:
             return
+
         temperature = int(temperature)
         with self._act_and_update():
-            self.ac.modify_oper(temperature=temperature)
+            self.ac.update_temp(temperature)
+
         _LOGGER.debug(f"new temperature was set to {temperature}")
 
     def set_hvac_mode(self, hvac_mode):
@@ -285,32 +311,65 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
             _LOGGER.debug(
                 f"ac has been turned off due hvac_mode being set to {hvac_mode}"
             )
-        else:
-            ac_mode = self.HVAC_MODE_MAPPING_INV[hvac_mode]
-            _LOGGER.debug(f"setting hvac mode to {hvac_mode} (ac_mode {ac_mode})")
-            with self._act_and_update():
-                self.ac.modify_oper(ac_mode=ac_mode)
-            _LOGGER.debug(f"hvac mode was set to {hvac_mode} (ac_mode {ac_mode})")
+            return
+
+        ac_mode = None
+
+        if hvac_mode == HVAC_MODE_COOL:
+            _LOGGER.debug(f"set_hvac_mode: ac is cold")
+            ac_mode = 'cold'
+
+        if hvac_mode == HVAC_MODE_HEAT:
+            _LOGGER.debug(f"set_hvac_mode: ac is hot")
+            ac_mode = 'hot'
+
+        if ac_mode is None:
+            _LOGGER.warning("Unsupported mode " + hvac_mode)
+            return
+
+        _LOGGER.debug(f"setting hvac mode to {hvac_mode} (ac_mode {ac_mode})")
+        with self._act_and_update():
+            self.ac.update_mode(ac_mode)
+
+        _LOGGER.debug(f"hvac mode was set to {hvac_mode} (ac_mode {ac_mode})")
 
     def set_fan_mode(self, fan_mode):
-        _LOGGER.debug(f"setting fan mode to {fan_mode}")
-        fan_speed = self.FAN_MODE_MAPPING_INV[fan_mode]
+        _LOGGER.debug(f"set_fan_mode: setting fan mode to {fan_mode}")
+        if not self.ac.is_on:
+            _LOGGER.debug(f"set_fan_mode: ac is off, cant set fan mode to {fan_mode}")
+            return
+
+
+        fan_speed = None
+
+        if fan_mode == FAN_LOW:
+            fan_speed = 'low'
+
+        if fan_mode == FAN_MEDIUM:
+            fan_speed = 'medium'
+
+        if fan_mode == FAN_HIGH:
+            fan_speed = 'high'
+
+        if fan_mode == FAN_AUTO:
+            fan_speed = 'auto'
+
+
+        if fan_speed is None:
+            _LOGGER.warning("Unsupported fan_mode: " + fan_mode)
+            return
+
         _LOGGER.debug(f"setting fan mode to {fan_mode} (fan_speed {fan_speed})")
         with self._act_and_update():
-            self.ac.modify_oper(fan_speed=fan_speed)
+            self.ac.update_fan_speed(fan_speed)
         _LOGGER.debug(f"fan mode was set to {fan_mode} (fan_speed {fan_speed})")
 
     @contextmanager
     def _act_and_update(self):
         yield
         time.sleep(2)
-        self.update()
-        time.sleep(3)
-        self.update()
 
     # data fetch mechanism
     def update(self):
         """Get the latest data."""
-        _LOGGER.debug("Updating status using the client AC instance...")
-        self.ac.update_status()
-        _LOGGER.debug("Status updated using the client AC instance")
+        _LOGGER.debug("not doing anything, should I even use it?")
