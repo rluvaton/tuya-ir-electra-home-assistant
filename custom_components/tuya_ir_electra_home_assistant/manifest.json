@@ -1,8 +1,8 @@
 {
-  "domain": "tuya-ir-electra-home-assistant",
+  "domain": "tuya_ir_electra_home_assistant",
   "name": "Tuya IR remote control for Electra air conditioners",
   "dependencies": [],
   "codeowners": ["@rluvaton"],
   "requirements": ["tinytuya~=1.10.3"],
-  "version": "0.0.2"
+  "version": "0.0.3"
 }
