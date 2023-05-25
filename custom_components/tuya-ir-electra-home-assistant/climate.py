@@ -46,19 +46,24 @@ from homeassistant.components.climate.const import (
     FAN_HIGH,
 )
 
-from electrasmart import AC, ElectraAPI
+# from electrasmart import AC, ElectraAPI
 
 _LOGGER = logging.getLogger(__name__)
 
-
-CONF_IMEI = "imei"
-CONF_TOKEN = "token"
+# CONF_IMEI = "imei"
+# CONF_TOKEN = "token"
 CONF_ACS = "acs"
-CONF_AC_ID = "id"
-CONF_AC_NAME = "name"
-CONF_USE_SHARED_SID = "use_shared_sid"
+CONF_TUYA_API_KEY="tuya_api_key"
+CONF_TUYA_API_SECRET="tuya_api_secret"
+CONF_TUYA_API_REGION="tuya_api_region"
+# CONF_AC_ID = "id"
 
-DEFAULT_NAME = "ElectraSmart"
+CONF_AC_NAME = "name"
+CONF_AC_TUYA_IR_DEVICE_ID="tuya_ir_device_id"
+CONF_AC_TUYA_IR_REMOTE_ID="tuya_ir_remote_id"
+# CONF_USE_SHARED_SID = "use_shared_sid"
+
+DEFAULT_NAME = "TuyaIRElectraHomeAssistant"
 
 
 # Schema should contain
@@ -71,17 +76,18 @@ DEFAULT_NAME = "ElectraSmart"
 
 AC_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_AC_ID): cv.string,
         vol.Required(CONF_AC_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Required(CONF_AC_TUYA_IR_DEVICE_ID): cv.string,
+        vol.Required(CONF_AC_TUYA_IR_REMOTE_ID): cv.string,
     }
 )
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_IMEI): cv.string,
-        vol.Required(CONF_TOKEN): cv.string,
-        vol.Optional(CONF_USE_SHARED_SID, default=False): cv.boolean,
+        vol.Required(CONF_TUYA_API_KEY): cv.string,
+        vol.Required(CONF_TUYA_API_SECRET): cv.string,
+        vol.Required(CONF_TUYA_API_REGION): cv.string,
         vol.Required(CONF_ACS): vol.All(cv.ensure_list, [AC_SCHEMA]),
     }
 )
@@ -94,23 +100,25 @@ async def async_setup_platform(
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
     # Note: since this is a global thing, if at least one entity activates it, it's on
-    """Set up the ElectraSmartClimate platform."""
-    _LOGGER.debug("Setting up the ElectraSmart climate platform")
+    """Set up the TuyaIRElectraHomeAssistant platform."""
+    _LOGGER.debug("Setting up the TuyaIRElectraHomeAssistant climate platform conf: %s", config)
     session = async_get_clientsession(hass)
+
     imei = config.get(CONF_IMEI)
     token = config.get(CONF_TOKEN)
     use_shared_sid = config.get(CONF_USE_SHARED_SID)
     acs = [
-        ElectraSmartClimate(ac, imei, token, use_shared_sid)
+        TuyaIRElectraHomeAssistant(ac, imei, token, use_shared_sid)
         for ac in config.get(CONF_ACS)
     ]
 
     async_add_entities(acs, update_before_add=True)
 
 
-class ElectraSmartClimate(ClimateEntity):
+class TuyaIRElectraHomeAssistant(ClimateEntity):
     def __init__(self, ac, imei, token, use_shared_sid):
         """Initialize the thermostat."""
+        _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac)
         self._name = ac[CONF_AC_NAME]
         self.ac = AC(imei, token, ac[CONF_AC_ID], None, use_shared_sid)
 
