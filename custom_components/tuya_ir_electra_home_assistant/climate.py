@@ -129,7 +129,7 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     async def async_setup(self, hass):
         """Set up the thermostat."""
         _LOGGER.info("Setting up TuyaIRElectraHomeAssistant")
-        await hass.async_add_executor_job(self.ac.setup())
+        await hass.async_add_executor_job(self.ac.setup)
 
     # managed properties
 
