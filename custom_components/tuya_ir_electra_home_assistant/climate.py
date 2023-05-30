@@ -48,8 +48,6 @@ from homeassistant.components.climate.const import (
     FAN_HIGH,
 )
 
-# from electrasmart import AC, ElectraAPI
-
 _LOGGER = logging.getLogger(__name__)
 
 # CONF_IMEI = "imei"
