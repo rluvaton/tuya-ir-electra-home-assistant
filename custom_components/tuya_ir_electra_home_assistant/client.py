@@ -6,12 +6,12 @@ from .ir_api import IRApi
 logger = logging.getLogger(__name__ + ".client")
 
 class AC:
-    def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ir_device_id, ir_remote_id):
+    def __init__(self, ir_device_id, device_local_key, device_ip, version):
         self._mutex = Lock()
 
-        self._api = IRApi(tuya_region, tuya_api_key, tuya_api_secret, ir_device_id, ir_remote_id)
+        self._api = IRApi(ir_device_id, device_local_key, device_ip, version)
 
-        # TODO - need to save in persistent storage
+        # TODO - need to save in persistent storage or use push rather than pool so HA would save it
         self.is_on = False
         self.mode = 'cold'
         self.fan_speed = 'low'
@@ -31,7 +31,7 @@ class AC:
 
     def _update_temp_critical(self, new_temp):
         res = self._api.set_state(self.mode, new_temp, self.fan_speed)
-        self.temp = res["temp"]
+        self._update_from_result(res)
 
     def update_mode(self, mode):
         self.turn_on()
@@ -39,7 +39,7 @@ class AC:
 
     def _update_mode_critical(self, new_mode):
         res = self._api.set_state(new_mode, self.temp, self.fan_speed)
-        self.mode = res["mode"]
+        self._update_from_result(res)
 
     def update_fan_speed(self, fan_speed):
         self.turn_on()
@@ -47,7 +47,12 @@ class AC:
 
     def _update_fan_speed_critical(self, new_fan_speed):
         res = self._api.set_state(self.mode, self.temp, new_fan_speed)
+        self._update_from_result(res)
+
+    def _update_from_result(self, res):
+        self.mode = res["mode"]
         self.fan_speed = res["fan_speed"]
+        self.temp = res["temp"]
 
     def turn_off(self):
         if self.is_on:

@@ -13,74 +13,64 @@ commands_path = os.path.join(current_dir, './ac-commands.json5')
 with open(commands_path, 'r') as f:
     ir_commands = json5.load(f)
 
+
 class IRApi:
-    def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ir_device_id, ir_remote_id):
-       self.tuya_region = tuya_region
-       self.tuya_api_key = tuya_api_key
-       self.tuya_api_secret = tuya_api_secret
-       self._ir_device_id = ir_device_id
-       self._ir_remote_id = ir_remote_id
+    # Credentials for the IR device
+    # From python -m tinytuya scan
+    def __init__(self, ir_device_id, device_local_key, device_ip, version='3.3'):
+        self.ir_device_id = ir_device_id
+        self.device_local_key = device_local_key
+        self.device_ip = device_ip
+        self.version = float('3.3' if version is None else version)
+        self._device_api = None
 
     def setup(self):
-        self._tuya_cloud = tinytuya.Cloud(
-            apiRegion=self.tuya_region,
-            apiKey=self.tuya_api_key,
-            apiSecret=self.tuya_api_secret,
-            # apiDeviceID=device_id
-        )
+        self._device_api = tinytuya.Device(self.ir_device_id, self.device_ip, self.device_local_key)
+        self._device_api.set_version(self.version)
 
-    def _send_command(self, key_id):
-        post_data = {
-            # 999 - DIY
-            "category_id": 999,
-            "key_id": key_id,
-        }
-        res = self._tuya_cloud.cloudrequest(
-            "/v2.0/infrareds/%s/remotes/%s/raw/command" % (self._ir_device_id, self._ir_remote_id),
-            post=post_data,
-        )
+    def _send_command(self, command_id):
+        payload = self._device_api.generate_payload(tinytuya.CONTROL, {
+            "201": json.dumps({
+                "control": "send_ir",
+                "head": "",
+                "key1": command_id,
+                "type": 0,
+                "delay": 300
+            })
+        })
+        res = self._device_api.send(payload)
 
         logger.debug("Send IR command result: %s", json.dumps(res, indent=2))
 
-        if res["success"] is False:
-            logger.error("Send IR command failed with %s", json.dumps(res, indent=2))
-            raise Exception("Send IR command failed with", json.dumps(res, indent=2))
+        if res is not None:
+            logger.error("Send IR command failed with %s", res)
 
     def toggle_power(self):
         self._send_command(ir_commands["power_on"])
 
     def set_state(self, mode, temp, fan_speed):
-        if mode not in ['cold', 'hot']:
-            logger.error('Mode must be one of cold, hot, got ' + mode)
-            raise Exception('Mode must be one of cold, hot, got ' + mode)
+        if mode not in ['cool', 'heat', 'dry', 'fan', 'auto']:
+            msg = 'Mode must be one of cool, heat, dry, fan or auto, got ' + mode
+            logger.error(msg)
+            raise Exception(msg)
 
         if fan_speed not in ['low', 'medium', 'high', 'auto']:
-            logger.error('fan speed must be one of low, medium, high or auto and instead got ' + fan_speed)
-            raise Exception('fan speed must be one of low, medium, high or auto and instead got ' + fan_speed)
+            msg = 'fan speed must be one of low, medium, high or auto and instead got ' + fan_speed
+            logger.error(msg)
+            raise Exception(msg)
 
-        bounded_temp = self._format_temp(mode, temp)
+        if mode == 'dry':
+            # Dry mode only supports low fan speed
+            fan_speed = 'low'
 
         # Got the learning code:
         # https://developer.tuya.com/en/docs/cloud/5c93c9ffc5?id=Kb3oebi2lvz0k
-        key_id = ir_commands[mode][fan_speed][str(bounded_temp)]
+        # Than get the logs through the Tuya dashboard
+        key_id = ir_commands[mode][fan_speed][str(temp)]
         self._send_command(key_id)
 
         return {
             "mode": mode,
-            "temp": bounded_temp,
+            "temp": temp,
             "fan_speed": fan_speed,
         }
-
-    @staticmethod
-    def _format_temp(mode, temp):
-        if mode == 'cold':
-            # The range of cool temperature is 16-28
-            temp = max(temp, 16)
-            temp = min(temp, 28)
-
-        if mode == 'hot':
-            # The range of cool temperature is 20-30
-            temp = min(temp, 20)
-            temp = max(temp, 30)
-
-        return temp

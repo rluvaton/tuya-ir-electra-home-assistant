@@ -8,7 +8,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from typing import Any, Callable, Dict, Optional
 from .client import AC
 
-
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_PASSWORD,
@@ -26,7 +25,6 @@ from homeassistant.helpers.typing import (
     HomeAssistantType,
 )
 
-
 from homeassistant.components.climate.const import (
     CURRENT_HVAC_OFF,
     CURRENT_HVAC_IDLE,
@@ -35,10 +33,10 @@ from homeassistant.components.climate.const import (
     CURRENT_HVAC_DRY,
     HVAC_MODE_OFF,
     HVAC_MODE_COOL,
-    # HVAC_MODE_FAN_ONLY,
-    # HVAC_MODE_DRY,
+    HVAC_MODE_FAN_ONLY,
+    HVAC_MODE_DRY,
     HVAC_MODE_HEAT,
-    # HVAC_MODE_HEAT_COOL,
+    HVAC_MODE_HEAT_COOL,
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_FAN_MODE,
     FAN_OFF,
@@ -50,64 +48,48 @@ from homeassistant.components.climate.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# CONF_IMEI = "imei"
-# CONF_TOKEN = "token"
-CONF_TUYA_API_KEY="tuya_api_key"
-CONF_TUYA_API_SECRET="tuya_api_secret"
-CONF_TUYA_API_REGION="tuya_api_region"
-# CONF_USE_SHARED_SID = "use_shared_sid"
-
 # CONF_AC_ID = "id"
 CONF_ACS = "acs"
 CONF_AC_NAME = "name"
-CONF_AC_TUYA_IR_DEVICE_ID="tuya_ir_device_id"
-CONF_AC_TUYA_IR_REMOTE_ID="tuya_ir_remote_id"
+CONF_AC_TUYA_IR_DEVICE_ID = "tuya_ir_device_id"
+CONF_AC_TUYA_DEVICE_LOCAL_KEY = "tuya_device_local_key"
+CONF_AC_TUYA_DEVICE_IP = "tuya_device_ip"
+CONF_AC_TUYA_DEVICE_VERSION = "tuya_device_version"
 
 DEFAULT_NAME = "TuyaIRElectraHomeAssistant"
 print("")
-# Schema should contain
-# - ir_device_id
-# - virtual_ir_remote_device_id
-# - api_region
-# - api_key
-# - api_secret
-# - Maybe we can get the keys from the learned remote by using the API and the format we specify?
+
 
 AC_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_AC_NAME, default=DEFAULT_NAME): cv.string,
         vol.Required(CONF_AC_TUYA_IR_DEVICE_ID): cv.string,
-        vol.Required(CONF_AC_TUYA_IR_REMOTE_ID): cv.string,
+        vol.Required(CONF_AC_TUYA_DEVICE_LOCAL_KEY): cv.string,
+        vol.Required(CONF_AC_TUYA_DEVICE_IP): cv.string,
+        vol.Required(CONF_AC_TUYA_DEVICE_VERSION, default='3.3'): cv.string,
     }
 )
 
-
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_TUYA_API_KEY): cv.string,
-        vol.Required(CONF_TUYA_API_SECRET): cv.string,
-        vol.Required(CONF_TUYA_API_REGION): cv.string,
         vol.Required(CONF_ACS): vol.All(cv.ensure_list, [AC_SCHEMA]),
     }
 )
 
 
 async def async_setup_platform(
-    hass: HomeAssistantType,
-    config: ConfigType,
-    async_add_entities: Callable,
-    discovery_info: Optional[DiscoveryInfoType] = None,
+        hass: HomeAssistantType,
+        config: ConfigType,
+        async_add_entities: Callable,
+        discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
     # Note: since this is a global thing, if at least one entity activates it, it's on
     """Set up the TuyaIRElectraHomeAssistant platform."""
     _LOGGER.debug("Setting up the TuyaIRElectraHomeAssistant climate platform conf: %s", config)
     session = async_get_clientsession(hass)
 
-    tuya_api_region = config.get(CONF_TUYA_API_REGION)
-    tuya_api_key = config.get(CONF_TUYA_API_KEY)
-    tuya_api_secret = config.get(CONF_TUYA_API_SECRET)
     acs = [
-        TuyaIRElectraHomeAssistant(tuya_api_region, tuya_api_key, tuya_api_secret, ac)
+        TuyaIRElectraHomeAssistant(ac)
         for ac in config.get(CONF_ACS)
     ]
 
@@ -117,12 +99,16 @@ async def async_setup_platform(
 
 
 class TuyaIRElectraHomeAssistant(ClimateEntity):
-    def __init__(self, tuya_region, tuya_api_key, tuya_api_secret, ac_conf):
+    def __init__(self, ac_conf):
         """Initialize the thermostat."""
         _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac_conf)
         self._name = ac_conf[CONF_AC_NAME]
-
-        self.ac = AC(tuya_region, tuya_api_key, tuya_api_secret, ac_conf[CONF_AC_TUYA_IR_DEVICE_ID], ac_conf[CONF_AC_TUYA_IR_REMOTE_ID])
+        self.ac = AC(
+            ac_conf[CONF_AC_TUYA_IR_DEVICE_ID],
+            ac_conf[CONF_AC_TUYA_DEVICE_LOCAL_KEY],
+            ac_conf[CONF_AC_TUYA_DEVICE_IP],
+            ac_conf[CONF_AC_TUYA_DEVICE_VERSION]
+        )
 
     async def async_setup(self, hass):
         """Set up the thermostat."""
@@ -200,10 +186,10 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     HVAC_MODE_MAPPING = {
         "STBY": HVAC_MODE_OFF,
         "COOL": HVAC_MODE_COOL,
-        # "FAN": HVAC_MODE_FAN_ONLY,
-        # "DRY": HVAC_MODE_DRY,
+        "FAN": HVAC_MODE_FAN_ONLY,
+        "DRY": HVAC_MODE_DRY,
         "HEAT": HVAC_MODE_HEAT,
-        # "AUTO": HVAC_MODE_HEAT_COOL,
+        "AUTO": HVAC_MODE_HEAT_COOL,
     }
 
     HVAC_MODE_MAPPING_INV = {v: k for k, v in HVAC_MODE_MAPPING.items()}
@@ -215,13 +201,25 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
             _LOGGER.debug(f"hvac_mode: ac is off")
             return HVAC_MODE_OFF
 
-        if self.ac.mode == 'cold':
-            _LOGGER.debug(f"hvac_mode: ac is cold")
+        if self.ac.mode == 'cool':
+            _LOGGER.debug(f"hvac_mode: ac is cool")
             return HVAC_MODE_COOL
 
-        if self.ac.mode == 'hot':
-            _LOGGER.debug(f"hvac_mode: ac is hot")
+        if self.ac.mode == 'heat':
+            _LOGGER.debug(f"hvac_mode: ac is heat")
             return HVAC_MODE_HEAT
+
+        if self.ac.mode == 'auto':
+            _LOGGER.debug(f"hvac_mode: ac is auto")
+            return HVAC_MODE_HEAT_COOL
+
+        if self.ac.mode == 'fan':
+            _LOGGER.debug(f"hvac_mode: ac is fan")
+            return HVAC_MODE_FAN_ONLY
+
+        if self.ac.mode == 'dry':
+            _LOGGER.debug(f"hvac_mode: ac is dry")
+            return HVAC_MODE_DRY
 
         else:
             _LOGGER.warning(f"hvac_mode: unknown mode: " + self.ac.mode)
@@ -235,10 +233,10 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         return [
             HVAC_MODE_OFF,
             HVAC_MODE_COOL,
-            # HVAC_MODE_FAN_ONLY,
-            # HVAC_MODE_DRY,
+            HVAC_MODE_FAN_ONLY,
+            HVAC_MODE_DRY,
             HVAC_MODE_HEAT,
-            # HVAC_MODE_HEAT_COOL,
+            HVAC_MODE_HEAT_COOL,
         ]
 
     # TODO:!
@@ -322,12 +320,24 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         ac_mode = None
 
         if hvac_mode == HVAC_MODE_COOL:
-            _LOGGER.debug(f"set_hvac_mode: ac is cold")
-            ac_mode = 'cold'
+            _LOGGER.debug(f"set_hvac_mode: ac is cool")
+            ac_mode = 'cool'
 
         if hvac_mode == HVAC_MODE_HEAT:
-            _LOGGER.debug(f"set_hvac_mode: ac is hot")
-            ac_mode = 'hot'
+            _LOGGER.debug(f"set_hvac_mode: ac is heat")
+            ac_mode = 'heat'
+
+        if hvac_mode == HVAC_MODE_HEAT_COOL:
+            _LOGGER.debug(f"set_hvac_mode: ac is auto")
+            ac_mode = 'auto'
+
+        if hvac_mode == HVAC_MODE_FAN_ONLY:
+            _LOGGER.debug(f"set_hvac_mode: ac is fan")
+            ac_mode = 'fan'
+
+        if hvac_mode == HVAC_MODE_DRY:
+            _LOGGER.debug(f"set_hvac_mode: ac is dry")
+            ac_mode = 'dry'
 
         if ac_mode is None:
             _LOGGER.warning("Unsupported mode " + hvac_mode)
@@ -345,7 +355,6 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         #     _LOGGER.debug(f"set_fan_mode: ac is off, cant set fan mode to {fan_mode}")
         #     return
 
-
         fan_speed = None
 
         if fan_mode == FAN_LOW:
@@ -359,7 +368,6 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
 
         if fan_mode == FAN_AUTO:
             fan_speed = 'auto'
-
 
         if fan_speed is None:
             _LOGGER.warning("Unsupported fan_mode: " + fan_mode)
