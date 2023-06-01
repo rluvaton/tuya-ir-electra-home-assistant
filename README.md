@@ -1,1 +1,1 @@
-# Tuya IR remote for electra for my own home
+# Tuya IR remote for Electra
