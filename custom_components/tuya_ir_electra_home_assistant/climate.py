@@ -123,8 +123,11 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
         _LOGGER.info("Setting up TuyaIRElectraHomeAssistant")
         await self._hass.async_add_executor_job(self.ac.setup)
         prev = await self.async_get_last_state()
-        self._state.set_initial_state(prev["internal_is_on"], prev["internal_mode"], prev["internal_temp"], prev["internal_fan_speed"])
         _LOGGER.info("prev data %s", prev)
+        if prev:
+            _LOGGER.info("prev state: %s", prev.state)
+            _LOGGER.info("prev attributes: %s", prev.attributes)
+            self._state.set_initial_state(getattr(prev.attributes, "internal_is_on", False), getattr(prev.attributes, "internal_mode", None), getattr(prev.attributes, "internal_temp", None), getattr(prev.attributes, "internal_fan_speed", None))
 
     @property
     def extra_state_attributes(self):
@@ -402,6 +405,8 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
     def _act_and_update(self):
         yield
         time.sleep(2)
+
+        yield from self.async_update_ha_state()
 
     # data fetch mechanism
     def update(self):
