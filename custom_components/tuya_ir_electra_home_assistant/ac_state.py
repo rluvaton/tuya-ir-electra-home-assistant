@@ -1,4 +1,3 @@
-from custom_components.tuya_ir_electra_home_assistant.climate import TuyaIRElectraHomeAssistant
 
 IS_ON_ATTR = 'is_on'
 MODE_ATTR = 'mode'
@@ -7,7 +6,7 @@ TEMP_ATTR = 'temp'
 
 
 class ACState:
-    def __init__(self, entity: TuyaIRElectraHomeAssistant, hass):
+    def __init__(self, entity, hass):
         self._hass = hass
         self._entity = entity
         self._is_on = False
