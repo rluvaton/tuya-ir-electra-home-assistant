@@ -128,7 +128,7 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
         if prev:
             _LOGGER.info("prev state: %s", prev.state)
             _LOGGER.info("prev attributes: %s", prev.attributes)
-            self._state.set_initial_state(getattr(prev.attributes, "internal_is_on", False), getattr(prev.attributes, "internal_mode", None), getattr(prev.attributes, "internal_temp", None), getattr(prev.attributes, "internal_fan_speed", None))
+            self._state.set_initial_state(prev.attributes.get("internal_is_on", False), prev.attributes.get("internal_mode", None), prev.attributes.get("internal_temp", None), prev.attributes.get("internal_fan_speed", None))
 
     @property
     def extra_state_attributes(self):
@@ -263,14 +263,6 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
             HVAC_MODE_HEAT_COOL,
         ]
 
-    # TODO:!
-    # @property
-    # def hvac_action(self):
-    #     """Return the current running hvac operation."""
-    #     # if self._target_temperature < self._current_temperature:
-    #     #     return CURRENT_HVAC_IDLE
-    #     # return CURRENT_HVAC_HEAT
-    #     return CURRENT_HVAC_IDLE
 
     FAN_MODE_MAPPING = {
         "LOW": FAN_LOW,
@@ -375,9 +367,6 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
 
     def set_fan_mode(self, fan_mode):
         _LOGGER.debug(f"set_fan_mode: setting fan mode to {fan_mode}")
-        # if not self.ac.is_on:
-        #     _LOGGER.debug(f"set_fan_mode: ac is off, cant set fan mode to {fan_mode}")
-        #     return
 
         fan_speed = None
 
