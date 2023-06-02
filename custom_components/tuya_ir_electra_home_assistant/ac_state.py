@@ -26,7 +26,7 @@ class ACState:
         if value is not True and value is not False:
             raise ValueError('is_on must be True or False')
 
-        self.is_on = value
+        self._is_on = value
 
     @property
     def mode(self):
