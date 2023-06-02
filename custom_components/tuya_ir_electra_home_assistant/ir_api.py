@@ -17,7 +17,7 @@ with open(commands_path, 'r') as f:
 class IRApi:
     # Credentials for the IR device
     # From python -m tinytuya scan
-    def __init__(self, ir_device_id, device_local_key, device_ip, version='3.3'):
+    def __init__(self, ir_device_id: str, device_local_key: str, device_ip: str, version: str ='3.3'):
         self.ir_device_id = ir_device_id
         self.device_local_key = device_local_key
         self.device_ip = device_ip
@@ -28,7 +28,7 @@ class IRApi:
         self._device_api = tinytuya.Device(self.ir_device_id, self.device_ip, self.device_local_key)
         self._device_api.set_version(self.version)
 
-    def _send_command(self, command_id):
+    def _send_command(self, command_id: str):
         payload = self._device_api.generate_payload(tinytuya.CONTROL, {
             "201": json.dumps({
                 "control": "send_ir",

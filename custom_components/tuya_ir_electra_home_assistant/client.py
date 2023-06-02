@@ -1,23 +1,18 @@
 from threading import Lock
 
 import logging
+
+from .ac_state import ACState
 from .ir_api import IRApi
 
 logger = logging.getLogger(__name__ + ".client")
 
 class AC:
-    def __init__(self, ir_device_id, device_local_key, device_ip, version):
+    def __init__(self, ir_device_id: str, device_local_key: str, device_ip: str, version: str, state: ACState):
         self._mutex = Lock()
 
         self._api = IRApi(ir_device_id, device_local_key, device_ip, version)
-
-        # TODO - need to save in persistent storage or use push rather than pool so HA would save it
-        self.is_on = False
-        self.mode = 'cold'
-        self.fan_speed = 'low'
-        self.temp = 25
-
-        self.tmp_temp = None
+        self._state = state
 
         self._status = None
         self._model = None
@@ -30,7 +25,7 @@ class AC:
         self.run_with_lock(lambda: self._update_temp_critical(new_temp))
 
     def _update_temp_critical(self, new_temp):
-        res = self._api.set_state(self.mode, new_temp, self.fan_speed)
+        res = self._api.set_state(self._state.mode, new_temp, self._state.fan_speed)
         self._update_from_result(res)
 
     def update_mode(self, mode):
@@ -38,7 +33,7 @@ class AC:
         self.run_with_lock(lambda: self._update_mode_critical(mode))
 
     def _update_mode_critical(self, new_mode):
-        res = self._api.set_state(new_mode, self.temp, self.fan_speed)
+        res = self._api.set_state(new_mode, self._state.temp, self._state.fan_speed)
         self._update_from_result(res)
 
     def update_fan_speed(self, fan_speed):
@@ -46,34 +41,30 @@ class AC:
         self.run_with_lock(lambda: self._update_fan_speed_critical(fan_speed))
 
     def _update_fan_speed_critical(self, new_fan_speed):
-        res = self._api.set_state(self.mode, self.temp, new_fan_speed)
+        res = self._api.set_state(self._state.mode, self._state.temp, new_fan_speed)
         self._update_from_result(res)
 
     def _update_from_result(self, res):
-        self.mode = res["mode"]
-        self.fan_speed = res["fan_speed"]
-        self.temp = res["temp"]
+        self._state.mode = res["mode"]
+        self._state.fan_speed = res["fan_speed"]
+        self._state.temp = int(res["temp"])
 
     def turn_off(self):
-        if self.is_on:
+        if self._state.is_on:
             self.toggle_power()
 
     def turn_on(self):
-        if not self.is_on:
+        if not self._state.is_on:
             self.toggle_power()
 
     def toggle_power(self):
         self.run_with_lock(self._toggle_power_critical)
 
     def _toggle_power_critical(self):
-        original_is_on = self.is_on
-        try:
-            self._api.toggle_power()
-            self.is_on = not original_is_on
-            logger.debug("current on is: " + str(self.is_on))
-        except Exception as e:
-            self.is_on = original_is_on
-            raise e
+        original_is_on = self._state.is_on
+        self._api.toggle_power()
+        self._state.is_on = not original_is_on
+        logger.debug("current on is: " + str(self._state.is_on))
 
     def run_with_lock(self, critical_section_fn):
         self._mutex.acquire(True)

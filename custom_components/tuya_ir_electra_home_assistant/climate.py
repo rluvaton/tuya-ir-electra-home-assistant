@@ -5,7 +5,11 @@ from contextlib import contextmanager
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.restore_state import RestoreEntity
+
 from typing import Any, Callable, Dict, Optional
+
+from .ac_state import ACState
 from .client import AC
 
 from homeassistant.const import (
@@ -89,7 +93,7 @@ async def async_setup_platform(
     session = async_get_clientsession(hass)
 
     acs = [
-        TuyaIRElectraHomeAssistant(ac)
+        TuyaIRElectraHomeAssistant(hass, ac)
         for ac in config.get(CONF_ACS)
     ]
 
@@ -98,22 +102,41 @@ async def async_setup_platform(
     await acs[0].async_setup(hass)
 
 
-class TuyaIRElectraHomeAssistant(ClimateEntity):
-    def __init__(self, ac_conf):
+class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
+    def __init__(self, hass, ac_conf):
         """Initialize the thermostat."""
         _LOGGER.info("Initializing TuyaIRElectraHomeAssistant", ac_conf)
         self._name = ac_conf[CONF_AC_NAME]
+        self._hass = hass
+        self._state = ACState(self, self._hass)
         self.ac = AC(
             ac_conf[CONF_AC_TUYA_IR_DEVICE_ID],
             ac_conf[CONF_AC_TUYA_DEVICE_LOCAL_KEY],
             ac_conf[CONF_AC_TUYA_DEVICE_IP],
-            ac_conf[CONF_AC_TUYA_DEVICE_VERSION]
+            ac_conf[CONF_AC_TUYA_DEVICE_VERSION],
+            self._state
         )
 
-    async def async_setup(self, hass):
+
+    async def async_added_to_hass(self):
         """Set up the thermostat."""
+        await super().async_added_to_hass()
+
         _LOGGER.info("Setting up TuyaIRElectraHomeAssistant")
-        await hass.async_add_executor_job(self.ac.setup)
+        await self._hass.async_add_executor_job(self.ac.setup)
+        prev = await self.async_get_last_state()
+        self._state.set_initial_state(prev["internal_is_on"], prev["internal_mode"], prev["internal_temp"], prev["internal_fan_speed"])
+        _LOGGER.info("prev data %s", prev)
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "internal_is_on": self._state.is_on,
+            "internal_mode": self._state.mode,
+            "internal_fan_speed": self._state.fan_speed,
+            "internal_temp": self._state.temp,
+        }
 
     # managed properties
 
@@ -124,13 +147,12 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def unique_id(self) -> str:
         """Return the unique ID for this thermostat."""
-        return "_".join([self._name, "climate"])
+        return f"climate {self._name}"
 
     @property
     def should_poll(self):
         """Return if polling is required."""
-        # TODO - maybe change that
-        return True
+        return False
 
     @property
     def min_temp(self):
@@ -152,11 +174,11 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         """Return the current temperature."""
         # TODO - I hope that this means in the AC
 
-        if not self.ac.is_on:
+        if not self._state.is_on:
             _LOGGER.debug(f"current_temperature: ac is off")
             # return None
 
-        value = self.ac.temp
+        value = self._state.temp
         if value is not None:
             value = int(value)
         _LOGGER.debug(f"value of current_temperature property: {value}")
@@ -167,11 +189,11 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
         """Return the temperature we try to reach."""
 
         # TODO - not supported in the moment - will return the current temperature
-        if not self.ac.is_on:
+        if not self._state.is_on:
             _LOGGER.debug(f"target_temperature: ac is off")
             return None
 
-        value = self.ac.temp
+        value = self._state.temp
         if value is not None:
             value = int(value)
         _LOGGER.debug(f"value of target_temperature property: {value}")
@@ -197,32 +219,32 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def hvac_mode(self):
         """Return hvac operation ie. heat, cool mode."""
-        if not self.ac.is_on:
+        if not self._state.is_on:
             _LOGGER.debug(f"hvac_mode: ac is off")
             return HVAC_MODE_OFF
 
-        if self.ac.mode == 'cool':
+        if self._state.mode == 'cool':
             _LOGGER.debug(f"hvac_mode: ac is cool")
             return HVAC_MODE_COOL
 
-        if self.ac.mode == 'heat':
+        if self._state.mode == 'heat':
             _LOGGER.debug(f"hvac_mode: ac is heat")
             return HVAC_MODE_HEAT
 
-        if self.ac.mode == 'auto':
+        if self._state.mode == 'auto':
             _LOGGER.debug(f"hvac_mode: ac is auto")
             return HVAC_MODE_HEAT_COOL
 
-        if self.ac.mode == 'fan':
+        if self._state.mode == 'fan':
             _LOGGER.debug(f"hvac_mode: ac is fan")
             return HVAC_MODE_FAN_ONLY
 
-        if self.ac.mode == 'dry':
+        if self._state.mode == 'dry':
             _LOGGER.debug(f"hvac_mode: ac is dry")
             return HVAC_MODE_DRY
 
         else:
-            _LOGGER.warning(f"hvac_mode: unknown mode: " + self.ac.mode)
+            _LOGGER.warning(f"hvac_mode: unknown mode: " + self._state.mode)
 
             # Not returning off as if it's on then we would be completely off
             return HVAC_MODE_COOL
@@ -260,25 +282,25 @@ class TuyaIRElectraHomeAssistant(ClimateEntity):
     @property
     def fan_mode(self):
         """Returns the current fan mode (low, high, auto etc)"""
-        if not self.ac.is_on:
+        if not self._state.is_on:
             _LOGGER.debug(f"fan_mode: returning FAN_OFF - device is off")
             return FAN_OFF
 
-        _LOGGER.debug(f"fan_mode: fan_speed is " + self.ac.fan_speed)
+        _LOGGER.debug(f"fan_mode: fan_speed is " + self._state.fan_speed)
 
-        if self.ac.fan_speed == 'low':
+        if self._state.fan_speed == 'low':
             return FAN_LOW
 
-        if self.ac.fan_speed == 'medium':
+        if self._state.fan_speed == 'medium':
             return FAN_MEDIUM
 
-        if self.ac.fan_speed == 'high':
+        if self._state.fan_speed == 'high':
             return FAN_HIGH
 
-        if self.ac.fan_speed == 'auto':
+        if self._state.fan_speed == 'auto':
             return FAN_AUTO
 
-        _LOGGER.debug(f"fan_mode: unknown fan_speed: " + self.ac.fan_speed)
+        _LOGGER.debug(f"fan_mode: unknown fan_speed: " + self._state.fan_speed)
         return None
 
     @property
