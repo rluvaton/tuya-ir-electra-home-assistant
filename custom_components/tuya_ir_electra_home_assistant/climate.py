@@ -99,8 +99,6 @@ async def async_setup_platform(
 
     async_add_entities(acs, update_before_add=True)
 
-    await acs[0].async_setup(hass)
-
 
 class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
     def __init__(self, hass, ac_conf):
