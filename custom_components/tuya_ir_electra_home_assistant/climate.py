@@ -1,6 +1,6 @@
 import time
 import logging
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -401,12 +401,12 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
             self.ac.update_fan_speed(fan_speed)
         _LOGGER.debug(f"fan mode was set to {fan_mode} (fan_speed {fan_speed})")
 
-    @contextmanager
-    def _act_and_update(self):
+    @asynccontextmanager
+    async def _act_and_update(self):
         yield
         time.sleep(2)
 
-        yield from self.async_update_ha_state()
+        await self.async_update_ha_state()
 
     # data fetch mechanism
     def update(self):
