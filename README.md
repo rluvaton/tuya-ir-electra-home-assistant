@@ -6,7 +6,10 @@
 - Add `https://github.com/rluvaton/tuya-ir-electra-home-assistant` as a Custom Repository
 - Install `tuya-ir-electra-home-assistant` from the HACS Integrations tab
 - Restart Home Assistant
-- add to the `configuration.yaml` file the following code:
+- add to the `configuration.yaml` file the following configuration:
+
+for the `tuya_ir_device_id` and the `tuya_device_local_key` you need to use [`tinytuya`](https://github.com/jasonacox/tinytuya#network-scanner) for those:
+  - `python3 -m tinytuya wizard`
 ```yaml
 climate:
   - platform: tuya_ir_electra_home_assistant
