@@ -17,7 +17,7 @@ from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_PASSWORD,
     CONF_USERNAME,
-    TEMP_CELSIUS,
+    UnitOfTemperature,
 )
 from homeassistant.components.climate import (
     ClimateEntity,
@@ -31,19 +31,9 @@ from homeassistant.helpers.typing import (
 )
 
 from homeassistant.components.climate.const import (
-    CURRENT_HVAC_OFF,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_DRY,
-    HVAC_MODE_OFF,
-    HVAC_MODE_COOL,
-    HVAC_MODE_FAN_ONLY,
-    HVAC_MODE_DRY,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_HEAT_COOL,
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_FAN_MODE,
+    HVACAction,
+    HVACMode,
+    ClimateEntityFeature,
     FAN_OFF,
     FAN_AUTO,
     FAN_LOW,
@@ -169,7 +159,7 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def current_temperature(self):
@@ -205,15 +195,15 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
     def target_temperature_step(self):
         return 1
 
-    MODE_BY_NAME = {"IDLE": CURRENT_HVAC_IDLE}
+    MODE_BY_NAME = {"IDLE": HVACAction.IDLE}
 
     HVAC_MODE_MAPPING = {
-        "STBY": HVAC_MODE_OFF,
-        "COOL": HVAC_MODE_COOL,
-        "FAN": HVAC_MODE_FAN_ONLY,
-        "DRY": HVAC_MODE_DRY,
-        "HEAT": HVAC_MODE_HEAT,
-        "AUTO": HVAC_MODE_HEAT_COOL,
+        "STBY": HVACMode.OFF,
+        "COOL": HVACMode.COOL,
+        "FAN": HVACMode.FAN_ONLY,
+        "DRY": HVACMode.DRY,
+        "HEAT": HVACMode.HEAT,
+        "AUTO": HVACMode.HEAT_COOL,
     }
 
     HVAC_MODE_MAPPING_INV = {v: k for k, v in HVAC_MODE_MAPPING.items()}
@@ -223,44 +213,44 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
         """Return hvac operation ie. heat, cool mode."""
         if not self._state.is_on:
             _LOGGER.debug(f"hvac_mode: ac is off")
-            return HVAC_MODE_OFF
+            return HVACMode.OFF
 
         if self._state.mode == 'cool':
             _LOGGER.debug(f"hvac_mode: ac is cool")
-            return HVAC_MODE_COOL
+            return HVACMode.COOL
 
         if self._state.mode == 'heat':
             _LOGGER.debug(f"hvac_mode: ac is heat")
-            return HVAC_MODE_HEAT
+            return HVACMode.HEAT
 
         if self._state.mode == 'auto':
             _LOGGER.debug(f"hvac_mode: ac is auto")
-            return HVAC_MODE_HEAT_COOL
+            return HVACMode.HEAT_COOL
 
         if self._state.mode == 'fan':
             _LOGGER.debug(f"hvac_mode: ac is fan")
-            return HVAC_MODE_FAN_ONLY
+            return HVACMode.FAN_ONLY
 
         if self._state.mode == 'dry':
             _LOGGER.debug(f"hvac_mode: ac is dry")
-            return HVAC_MODE_DRY
+            return HVACMode.DRY
 
         else:
             _LOGGER.warning(f"hvac_mode: unknown mode: " + self._state.mode)
 
             # Not returning off as if it's on then we would be completely off
-            return HVAC_MODE_COOL
+            return HVACMode.COOL
 
     @property
     def hvac_modes(self):
         """HVAC modes."""
         return [
-            HVAC_MODE_OFF,
-            HVAC_MODE_COOL,
-            HVAC_MODE_FAN_ONLY,
-            HVAC_MODE_DRY,
-            HVAC_MODE_HEAT,
-            HVAC_MODE_HEAT_COOL,
+            HVACMode.OFF,
+            HVACMode.COOL,
+            HVACMode.FAN_ONLY,
+            HVACMode.DRY,
+            HVACMode.HEAT,
+            HVACMode.HEAT_COOL,
         ]
 
 
@@ -305,7 +295,7 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE
+        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE
 
     # actions
 
@@ -324,7 +314,7 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
 
     def set_hvac_mode(self, hvac_mode):
         _LOGGER.debug(f"setting hvac mode to {hvac_mode}")
-        if hvac_mode == HVAC_MODE_OFF:
+        if hvac_mode == HVACMode.OFF:
             _LOGGER.debug(f"turning off ac due to hvac_mode being set to {hvac_mode}")
             with self._act_and_update():
                 self.ac.turn_off()
@@ -335,23 +325,23 @@ class TuyaIRElectraHomeAssistant(RestoreEntity, ClimateEntity):
 
         ac_mode = None
 
-        if hvac_mode == HVAC_MODE_COOL:
+        if hvac_mode == HVACMode.COOL:
             _LOGGER.debug(f"set_hvac_mode: ac is cool")
             ac_mode = 'cool'
 
-        if hvac_mode == HVAC_MODE_HEAT:
+        if hvac_mode == HVACMode.HEAT:
             _LOGGER.debug(f"set_hvac_mode: ac is heat")
             ac_mode = 'heat'
 
-        if hvac_mode == HVAC_MODE_HEAT_COOL:
+        if hvac_mode == HVACMode.HEAT_COOL:
             _LOGGER.debug(f"set_hvac_mode: ac is auto")
             ac_mode = 'auto'
 
-        if hvac_mode == HVAC_MODE_FAN_ONLY:
+        if hvac_mode == HVACMode.FAN_ONLY:
             _LOGGER.debug(f"set_hvac_mode: ac is fan")
             ac_mode = 'fan'
 
-        if hvac_mode == HVAC_MODE_DRY:
+        if hvac_mode == HVACMode.DRY:
             _LOGGER.debug(f"set_hvac_mode: ac is dry")
             ac_mode = 'dry'
 
